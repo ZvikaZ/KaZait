@@ -8,16 +8,14 @@ import time
 import ctypes.wintypes
 
 # TODO:
-# - fix "Done" dialog
-# - debug "sugiyat Har habayit" not advancing counter
-# - check return code from ffmpeg
 # - implement Quality
+# - check return code from ffmpeg
 # - handle output of file?
+# - close sub-process when application quit
 # - beautify GUI
 # - translation ?
 #
 # investigate:
-# - how to add default "bookmarks" to FileChooserDialog - Downloads/Documents/Dessktop
 # - search not working in FileChooserDialog
 
 
@@ -56,14 +54,11 @@ class GladeGTK:
         self.origFileName = origFileName.lower()
         splitFileName = os.path.splitext(self.origFileName)[0]
         self.newFileName = splitFileName+".mp3"
-        if self.origFileName == self.newFileName:
-            i = 1
-            while True:
-                self.newFileName = splitFileName+"_"+str(i)+".mp3"
-                if os.path.exists(self.newFileName):
-                    i += 1
-                else:
-                    break
+        i = 0
+        while os.path.exists(self.newFileName.encode(sys.getfilesystemencoding())):
+            i += 1
+            self.newFileName = splitFileName+"_"+str(i)+".mp3"
+
         self.builder.get_object("outputNameLabel").set_text(self.newFileName)
 
     def updateGUI(self):
@@ -92,8 +87,12 @@ class GladeGTK:
 
         md = gtk.MessageDialog(self.builder.get_object("MainWindow"),
             gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO,
-            gtk.BUTTONS_CLOSE, "סיים")
+            gtk.BUTTONS_CLOSE, "%s\n%s %s %s" % ("סיימנו :)", "הקובץ", self.newFileName, "מוכן."))
         md.run()
+        md.destroy()
+
+        # avoid overwriting the samefile - if runs again
+        self.setFileName(self.origFileName)
 
 
     def on_okButton_clicked(self, widget):
