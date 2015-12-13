@@ -1,0 +1,15 @@
+# produce dist/KaZait.exe
+compile.bat
+
+# rename it to Hebrew name
+
+# run ISS to create output/setup.exe
+
+# zip it, to create output/setup.zip
+
+# create new git tag
+# create new GitHub release 
+
+# upload dist/hebrew kazait.exe and output/setup.zip
+
+# update github.io page with new URL

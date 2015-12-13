@@ -6,17 +6,10 @@ import sys
 import subprocess
 import time
 import ctypes.wintypes
-import locale
 
 # TODO:
-# - compile
-# -- button hebrew
-# - implement Quality
-# - check return code from ffmpeg
-# - handle output of ffmpeg?
 # - close sub-process when application quit
 # - beautify GUI
-# - make installer?
 # - translation ?
 #
 # investigate:
@@ -56,6 +49,18 @@ def get_win_my_documents():
 
 
 class GladeGTK:
+    qualities = {
+        1: '8k',
+        2: '16k',
+        3: '24k',
+        4: '32k',
+        5: '40k',
+        6: '48k',
+        7: '64k',
+        8: '80k',
+        9: '96k',
+        10: '112k',
+    }
     def setFileName(self, origFileName):
         self.origFileName = origFileName.lower()
         splitFileName = os.path.splitext(self.origFileName)[0]
@@ -78,10 +83,12 @@ class GladeGTK:
         si = subprocess.STARTUPINFO()
         # si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+        quality =  self.qualities[self.builder.get_object("hscale1").get_value()]
+
         self.proc = subprocess.Popen(
             [resource_path('ffmpeg.exe'),
              '-i', self.origFileName.encode(sys.getfilesystemencoding()),
-             '-b:a', '24k',
+             '-b:a', quality,
              # '-codec:a', 'libmp3lame',
              self.newFileName.encode(sys.getfilesystemencoding()) ],
             startupinfo=si)  # ,
@@ -105,9 +112,15 @@ class GladeGTK:
         self.builder.get_object("okButton").set_sensitive(True)
         bar.pop(context_id)
 
-        md = gtk.MessageDialog(self.builder.get_object("MainWindow"),
-            gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO,
-            gtk.BUTTONS_CLOSE, "%s\n%s %s %s" % ("סיימנו :)", "הקובץ", self.newFileName, "מוכן."))
+        if self.proc.returncode == 0:
+            md = gtk.MessageDialog(self.builder.get_object("MainWindow"),
+                gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO,
+                gtk.BUTTONS_CLOSE, "%s\n%s %s %s" % ("סיימנו :)", "הקובץ", self.newFileName, "מוכן."))
+        else:
+            print self.proc.returncode
+            md = gtk.MessageDialog(self.builder.get_object("MainWindow"),
+                gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+                gtk.BUTTONS_CLOSE, "%s\n%s %s %s" % ("הפעולה נכשלה!", "יתכן שהקובץ", self.origFileName, "אינו קובץ קול חוקי."))
         md.run()
         md.destroy()
 
@@ -167,10 +180,18 @@ class GladeGTK:
         context_id = bar.get_context_id("Initial Message")
         bar.push(context_id, "מוקדש באהבה לכל הלומדים. לבעיות: haramaty.zvika@gmail.com")
 
+        #######################
+        ## Scale Init        ##
+        #######################
+        scale = self.builder.get_object("hscale1")
+        temp_scale = gtk.Scale
+        scale.set_digits(0)
+        scale.set_range(1, 10)
+        scale.set_value(3)
+
 
     def showWindow(self):
         # self.readConfig()
-        print locale.getlocale()
 
         gtk.rc_add_default_file(resource_path("gtkrc"))
         gtk.widget_set_default_direction(gtk.TEXT_DIR_RTL)
