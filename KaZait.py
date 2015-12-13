@@ -6,13 +6,17 @@ import sys
 import subprocess
 import time
 import ctypes.wintypes
+import locale
 
 # TODO:
+# - compile
+# -- button hebrew
 # - implement Quality
 # - check return code from ffmpeg
-# - handle output of file?
+# - handle output of ffmpeg?
 # - close sub-process when application quit
 # - beautify GUI
+# - make installer?
 # - translation ?
 #
 # investigate:
@@ -46,7 +50,9 @@ def get_win_my_documents():
     if os.path.isdir(buf.value):
         return buf.value
     else:
+        # fall back to simple "home" notion
         return(os.path.expanduser("~"))
+
 
 
 class GladeGTK:
@@ -67,19 +73,33 @@ class GladeGTK:
             gtk.main_iteration(False)
 
     def startAction(self):
-        self.proc = subprocess.Popen(['ffmpeg.exe',
-                         '-i', self.origFileName.encode(sys.getfilesystemencoding()),
-                         '-b:a', '24k',
-                         # '-codec:a', 'libmp3lame',
-                         self.newFileName.encode(sys.getfilesystemencoding()) ])
+        # avoid console window appearing on subprocess, based on:
+        # https://github.com/pyinstaller/pyinstaller/wiki/Recipe-subprocess
+        si = subprocess.STARTUPINFO()
+        # si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        self.proc = subprocess.Popen(
+            [resource_path('ffmpeg.exe'),
+             '-i', self.origFileName.encode(sys.getfilesystemencoding()),
+             '-b:a', '24k',
+             # '-codec:a', 'libmp3lame',
+             self.newFileName.encode(sys.getfilesystemencoding()) ],
+            startupinfo=si)  # ,
+            # stdin=subprocess.PIPE,
+            # stdout=subprocess.PIPE,
+            # stderr=subprocess.PIPE)
+
         self.builder.get_object("okButton").set_sensitive(False)
         bar = self.builder.get_object("statusbar1")
         context_id = bar.get_context_id("Waiting")
         bar.push(context_id, "עובד, נא להמתין...")
 
+
         while self.proc.poll() is None:
             # print self.proc.returncode
             self.updateGUI()
+            # print self.proc.stdout.readline()
+            # print self.proc.stderr.readline()
             time.sleep(0.001)
 
         self.builder.get_object("okButton").set_sensitive(True)
@@ -150,8 +170,10 @@ class GladeGTK:
 
     def showWindow(self):
         # self.readConfig()
+        print locale.getlocale()
 
-        #gtk.rc_add_default_file(resource_path("gtkrc"))
+        gtk.rc_add_default_file(resource_path("gtkrc"))
+        gtk.widget_set_default_direction(gtk.TEXT_DIR_RTL)
 
         #Set the Glade file
         self.builder = gtk.Builder()
