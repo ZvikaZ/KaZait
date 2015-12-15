@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "כזית"
-#define MyAppVersion "0.2"
+#define MyAppVersion "0.3"
 #define MyAppPublisher "צביקה הרמתי"
 #define MyAppURL "http://zvikaz.github.io/KaZait/"
 #define MyAppExeName "כזית.exe"

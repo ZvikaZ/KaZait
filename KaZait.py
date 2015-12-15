@@ -14,9 +14,15 @@ from threading import Thread
 from Queue import Queue, Empty
 
 # TODO:
-# - ? add some waiting on progress bar, to save some cpu cycles...
 # - verify that temp file get erased
+# - ? add some waiting on progress bar, to save some cpu cycles...
+# - Make output file name clickable, or at least copyable
+# - Add label and frame to output name
+# - As explanation for quality, above 5
+# - InnoSetup: avoid highlighting uninstaller in start menu
+# - WebPage: make it RTL
 # - beautify GUI
+# - check for updates?
 # - translation ?
 #
 # investigate:

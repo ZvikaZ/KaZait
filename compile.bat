@@ -11,6 +11,7 @@ rem '
 rem a.datas += [('main.glade', r'main.glade', 'DATA')]
 rem a.datas += [('gtkrc', r'C:\Python27\Lib\site-packages\gtk-2.0\runtime\share\themes\MS-Windows\gtk-2.0\gtkrc', 'DATA')]
 rem a.binaries += [(r'lib\gtk-2.0\2.10.0\engines\libwimp.dll', r'C:\Python27\Lib\site-packages\gtk-2.0\runtime\lib\gtk-2.0\2.10.0\engines\libwimp.dll', 'BINARY') ]
+rem a.binaries += [(r'share\locale\he\LC_MESSAGES\gtk20.mo', r'C:\Python27\Lib\site-packages\gtk-2.0\runtime\share\locale\he\LC_MESSAGES\gtk20.mo', 'BINARY') ]
 rem '
 rem before 'pyz' section
 rem
@@ -18,6 +19,7 @@ rem Actual Compiling the SPEC file
 rem In order to support UPX (compressing the .EXE file by ~ 25%)
 rem add this: '--upx-dir C:\Users\zharamax\Downloads\upx391w\upx391w'
 rem
+del /Q dist\*
 pyinstaller KaZait.spec
 
 pause
