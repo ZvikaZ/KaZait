@@ -10,6 +10,7 @@ import tempfile
 import ctypes.wintypes
 import re
 import string
+import urllib
 from threading import Thread
 from Queue import Queue, Empty
 
@@ -233,8 +234,10 @@ class GladeGTK:
         self.startAction()
 
     def on_filechooserbutton1_file_set(self, widget):
-        self.setFileName(widget.get_filename())
-        self.builder.get_object("okButton").set_sensitive(True)
+        fileName = widget.get_filename()
+        if fileName:
+            self.setFileName(fileName)
+            self.builder.get_object("okButton").set_sensitive(True)
 
     def destroy(self, widget, data=None):
         self.quit()
@@ -242,6 +245,35 @@ class GladeGTK:
     def quit(self):
         # self.saveConfig()
         gtk.main_quit()
+
+
+    # copied from http://faq.pygtk.org/index.py?req=show&file=faq23.031.htp
+    def on_filechooserbutton1_drag_data_received(self, widget, context, x, y, selection, target_type, timestamp):
+        uri = selection.data.strip('\r\n\x00')
+        uri_splitted = uri.split()
+        # we may have more than one file dropped
+        # but in our case, we handle just the first 1
+        path = self.get_file_path_from_dnd_dropped_uri(uri_splitted[0])
+        if os.path.isfile(path): # is it file?
+            self.setFileName(path)
+            self.builder.get_object("okButton").set_sensitive(True)
+
+    def get_file_path_from_dnd_dropped_uri(self, uri):
+        # get the path to file
+        path = ""
+        if uri.startswith('file:\\\\\\'): # windows
+            path = uri[8:] # 8 is len('file:///')
+        elif uri.startswith('file://'): # nautilus, rox
+            path = uri[7:] # 7 is len('file://')
+        elif uri.startswith('file:'): # xffm
+            path = uri[5:] # 5 is len('file:')
+
+        path = urllib.url2pathname(path) # escape special chars
+        path = path.strip('\r\n\x00') # remove \r\n and NULL
+
+        return path
+
+
 
 
     def __init__(self):
