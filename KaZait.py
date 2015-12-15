@@ -5,10 +5,17 @@ import os
 import sys
 import subprocess
 import time
+import datetime
+import tempfile
 import ctypes.wintypes
+import re
+import string
+from threading import Thread
+from Queue import Queue, Empty
 
 # TODO:
-# - close sub-process when application quit
+# - ? add some waiting on progress bar, to save some cpu cycles...
+# - verify that temp file get erased
 # - beautify GUI
 # - translation ?
 #
@@ -47,6 +54,11 @@ def get_win_my_documents():
         return(os.path.expanduser("~"))
 
 
+# copied from http://stackoverflow.com/questions/375427/non-blocking-read-on-a-subprocess-pipe-in-python
+def enqueue_output(out, queue):
+    for line in iter(out.readline, b''):
+        queue.put(line)
+    out.close()
 
 class GladeGTK:
     qualities = {
@@ -72,46 +84,117 @@ class GladeGTK:
 
         self.builder.get_object("outputNameLabel").set_text(self.newFileName)
 
-    def updateGUI(self):
-        '''Force update of GTK mainloop during a long-running process'''
-        while gtk.events_pending():
-            gtk.main_iteration(False)
+    def translate_time(self, t):
+        pt = datetime.datetime.strptime(t.rstrip(), "%H:%M:%S.%f")
+        # return value in seconds, ignores microsecond
+        return pt.second + pt.minute*60 + pt.hour*3600
+
+    def update_progress_bar(self, progressFileName):
+        # init duration - from stderr
+        regularExp = re.compile(r"(Duration:)\s(.*?),")
+        for line in iter(self.proc.stderr.readline,''):
+            m = regularExp.search(line)
+            if m:
+                duration = self.translate_time(m.group(2))
+                break
+
+        # open thread to read from stderr - to avoid ffmpeg stuck because of full fifo
+        q = Queue()
+        t = Thread(target=enqueue_output, args=(self.proc.stderr, q))
+        t.daemon = True # thread dies with the program
+        t.start()
+
+        # open clean progress window
+        self.builder.get_object("labelElapsedTime").set_text("")
+        self.builder.get_object("labelRemainingTime").set_text("")
+        self.builder.get_object("labelTotalTime").set_text("")
+        self.builder.get_object("progressbar1").set_fraction(0)
+        self.builder.get_object("progressbar1").set_text("")
+        self.builder.get_object("ProgressWindow").show()
+
+        # start working
+        startTime = time.clock()
+        last_pos = 0
+        while self.proc.poll() is None:
+            try:
+                _ = q.get_nowait() # or q.get(timeout=.1)
+            except Empty:
+                pass
+
+            with open(progressFileName) as f:
+                f.seek(last_pos)
+                for line in f:
+                    key, value = string.split(line, "=", 2)
+                    if key == "out_time":
+                        valueTime = self.translate_time(value)
+                        donePart =  1.0 * valueTime / duration
+                        elapsedTime = time.clock() - startTime
+                        totalTime = elapsedTime / donePart
+                        remainTime = totalTime - elapsedTime
+                        self.builder.get_object("labelElapsedTime").set_text(str(int(elapsedTime)))
+                        self.builder.get_object("labelRemainingTime").set_text(str(int(remainTime)))
+                        self.builder.get_object("labelTotalTime").set_text(str(int(totalTime)))
+                        self.builder.get_object("progressbar1").set_fraction(donePart)
+                        self.builder.get_object("progressbar1").set_text(str(int(donePart * 100))+" %")
+                last_pos = f.tell()
+
+            # request GTK to come back for another round
+            yield True
+
+        # we're finished here
+        self.builder.get_object("ProgressWindow").hide()
+        self.finishAction()
+        yield False
+
 
     def startAction(self):
         # avoid console window appearing on subprocess, based on:
         # https://github.com/pyinstaller/pyinstaller/wiki/Recipe-subprocess
         si = subprocess.STARTUPINFO()
-        # si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         quality =  self.qualities[self.builder.get_object("hscale1").get_value()]
+        progressFile = tempfile.NamedTemporaryFile().name
 
+        ON_POSIX = 'posix' in sys.builtin_module_names
+
+        # The Core Of The Program:
+
+        # progressFile = "progress.txt"
         self.proc = subprocess.Popen(
             [resource_path('ffmpeg.exe'),
              '-i', self.origFileName.encode(sys.getfilesystemencoding()),
              '-b:a', quality,
+             '-progress', progressFile,
+             '-nostats',
+             # '-loglevel', '5',
              # '-codec:a', 'libmp3lame',
-             self.newFileName.encode(sys.getfilesystemencoding()) ],
-            startupinfo=si)  # ,
-            # stdin=subprocess.PIPE,
-            # stdout=subprocess.PIPE,
-            # stderr=subprocess.PIPE)
+             self.newFileName.encode(sys.getfilesystemencoding())
+            ],
+            bufsize=1, close_fds=ON_POSIX,
+            startupinfo=si,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
 
+        # update GUI
         self.builder.get_object("okButton").set_sensitive(False)
-        bar = self.builder.get_object("statusbar1")
-        context_id = bar.get_context_id("Waiting")
-        bar.push(context_id, "עובד, נא להמתין...")
+        statusBar = self.builder.get_object("statusbar1")
+        self.context_id = statusBar.get_context_id("Waiting")
+        statusBar.push(self.context_id, "עובד, נא להמתין...")
+
+        # make progress bar updating
+        task = self.update_progress_bar(progressFile)
+        gtk.idle_add(task.next)
 
 
-        while self.proc.poll() is None:
-            # print self.proc.returncode
-            self.updateGUI()
-            # print self.proc.stdout.readline()
-            # print self.proc.stderr.readline()
-            time.sleep(0.001)
-
+    def finishAction(self):
+        # restore GUI
         self.builder.get_object("okButton").set_sensitive(True)
-        bar.pop(context_id)
+        self.builder.get_object("statusbar1").pop(self.context_id)
 
+        # notify user how it finished
         if self.proc.returncode == 0:
             md = gtk.MessageDialog(self.builder.get_object("MainWindow"),
                 gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO,
@@ -127,6 +210,18 @@ class GladeGTK:
         # avoid overwriting the samefile - if runs again
         self.setFileName(self.origFileName)
 
+    ###############
+    # GUI signals
+    ###############
+
+    def on_backToDefaultQualityButton_clicked(self, widget):
+        self.builder.get_object("hscale1").set_value(self.defaultQuality)
+
+    def on_hscale1_value_changed(self, widget):
+        if self.builder.get_object("hscale1").get_value() == self.defaultQuality:
+            self.builder.get_object("backToDefaultQualityButton").set_sensitive(False)
+        else:
+            self.builder.get_object("backToDefaultQualityButton").set_sensitive(True)
 
     def on_okButton_clicked(self, widget):
         self.startAction()
@@ -144,6 +239,7 @@ class GladeGTK:
 
 
     def __init__(self):
+        self.defaultQuality = 3
         self.proc = None
         self.showWindow()
 
@@ -187,7 +283,7 @@ class GladeGTK:
         temp_scale = gtk.Scale
         scale.set_digits(0)
         scale.set_range(1, 10)
-        scale.set_value(3)
+        scale.set_value(self.defaultQuality)
 
 
     def showWindow(self):
