@@ -12,4 +12,4 @@ compile.bat
 
 # upload dist/hebrew kazait.exe and output/setup.zip
 
-# update github.io page with new URL
+# update github.io page (Manually!) with new URL - in 2 places

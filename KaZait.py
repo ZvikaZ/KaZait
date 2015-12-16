@@ -15,13 +15,13 @@ from threading import Thread
 from Queue import Queue, Empty
 
 # TODO:
+# - dNd:  highlight/change cursor when possible
 # - verify that temp file get erased
-# - ? add some waiting on progress bar, to save some cpu cycles...
+# - ? add some waiting on progress bar, to save some cpu cycles...  (measure first!)
 # - Make output file name clickable, or at least copyable
 # - Add label and frame to output name
 # - As explanation for quality, above 5
 # - InnoSetup: avoid highlighting uninstaller in start menu
-# - WebPage: make it RTL
 # - beautify GUI
 # - check for updates?
 # - translation ?
@@ -247,16 +247,37 @@ class GladeGTK:
         gtk.main_quit()
 
 
-    # copied from http://faq.pygtk.org/index.py?req=show&file=faq23.031.htp
+    ###################
+    # Drag And Drop
+    ###################
+
+    # Trying, unsuccessfully so far, to make DranAndDrop change button appearance
+    def on_label1_drag_motion(self, widget, context, x, y, timestamp):
+        print "motion Label"
+
+    # Trying, unsuccessfully so far, to make DranAndDrop change button appearance
+    def on_filechooserbutton1_drag_motion(self, widget, context, x, y, timestamp):
+        print "motion Button"
+
     def on_filechooserbutton1_drag_data_received(self, widget, context, x, y, selection, target_type, timestamp):
+        self.handle_dnd(selection)
+
+    def on_label1_drag_data_received(self, widget, context, x, y, selection, target_type, timestamp):
+        fileName = self.handle_dnd(selection)
+        if fileName:
+            self.builder.get_object("filechooserbutton1").set_filename(fileName)
+
+    # based on http://faq.pygtk.org/index.py?req=show&file=faq23.031.htp
+    def handle_dnd(self, selection):
         uri = selection.data.strip('\r\n\x00')
         uri_splitted = uri.split()
         # we may have more than one file dropped
         # but in our case, we handle just the first 1
         path = self.get_file_path_from_dnd_dropped_uri(uri_splitted[0])
-        if os.path.isfile(path): # is it file?
+        if os.path.isfile(path.encode(sys.getfilesystemencoding())): # is it file?
             self.setFileName(path)
             self.builder.get_object("okButton").set_sensitive(True)
+            return path
 
     def get_file_path_from_dnd_dropped_uri(self, uri):
         # get the path to file
@@ -274,6 +295,9 @@ class GladeGTK:
         return path
 
 
+    ###################
+    # Init
+    ###################
 
 
     def __init__(self):
@@ -282,16 +306,30 @@ class GladeGTK:
         self.showWindow()
 
     def my_init(self):
+        # TARGET_TYPE_URI_LIST = 80
+        # dnd_list = [ ( 'text/uri-list', 0, TARGET_TYPE_URI_LIST ) ]
+        # self.builder.get_object("label1").drag_dest_set(
+        #     gtk.DEST_DEFAULT_MOTION | gtk.DEST_DEFAULT_HIGHLIGHT | gtk.DEST_DEFAULT_DROP,
+        #     dnd_list, gtk.gdk.ACTION_COPY)
+        #
+        #
+        self.builder.get_object("label1").drag_dest_set(
+            gtk.DEST_DEFAULT_ALL,
+            [ ( "text/uri-list", 0, 80 ) ],
+            gtk.gdk.ACTION_DEFAULT)
+
         #######################
         ## File Chooser Init ##
         #######################
         chooser = self.builder.get_object("filechooserbutton1")
+        # chooser.drag_dest_set_track_motion(gtk.DEST_DEFAULT_MOTION)
 
         filter = gtk.FileFilter()
-        # filter.add_mime_type("audio/mpeg")
         filter.add_mime_type("audio/wav")
         filter.add_mime_type("audio/mpeg")
         filter.add_mime_type("audio/x-ms-wma")
+        filter.add_mime_type("audio/amr")
+        filter.add_mime_type("audio/3gpp")
         filter.set_name("קבצי קול")
         chooser.add_filter(filter)
 
@@ -318,7 +356,6 @@ class GladeGTK:
         ## Scale Init        ##
         #######################
         scale = self.builder.get_object("hscale1")
-        temp_scale = gtk.Scale
         scale.set_digits(0)
         scale.set_range(1, 10)
         scale.set_value(self.defaultQuality)

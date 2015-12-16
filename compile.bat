@@ -20,6 +20,7 @@ rem In order to support UPX (compressing the .EXE file by ~ 25%)
 rem add this: '--upx-dir C:\Users\zharamax\Downloads\upx391w\upx391w'
 rem
 del /Q dist\*
+del /Q output\*
 pyinstaller KaZait.spec
 
 pause

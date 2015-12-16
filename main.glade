@@ -20,7 +20,9 @@
               <object class="GtkLabel" id="label1">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">בחר קובץ קול לכיווץ</property>
+                <property name="label" translatable="yes">בחר, או גרור, קובץ קול לכיווץ</property>
+                <signal name="drag-data-received" handler="on_label1_drag_data_received" swapped="no"/>
+                <signal name="drag-motion" handler="on_label1_drag_motion" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -35,6 +37,7 @@
                 <property name="local_only">False</property>
                 <signal name="drag-data-received" handler="on_filechooserbutton1_drag_data_received" swapped="no"/>
                 <signal name="file-set" handler="on_filechooserbutton1_file_set" swapped="no"/>
+                <signal name="drag-motion" handler="on_filechooserbutton1_drag_motion" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">True</property>

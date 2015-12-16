@@ -1,0 +1,9 @@
+*~
+.idea/
+Output/
+build/
+dist/
+KaZait.dir.spec
+KaZait.file.spec
+check_dnd.py
+dragndrop.py
