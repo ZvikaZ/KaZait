@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 
 import gtk
 import os
@@ -13,6 +13,9 @@ import string
 import urllib
 from threading import Thread
 from Queue import Queue, Empty
+import webbrowser
+
+version = "0.4"
 
 # TODO:
 # - dNd:  highlight/change cursor when possible
@@ -186,7 +189,7 @@ class GladeGTK:
         )
 
         # update GUI
-        self.builder.get_object("okButton").set_sensitive(False)
+        self.set_oks_sensitivies(False)
         statusBar = self.builder.get_object("statusbar1")
         self.context_id = statusBar.get_context_id("Waiting")
         statusBar.push(self.context_id, "עובד, נא להמתין...")
@@ -198,7 +201,7 @@ class GladeGTK:
 
     def finishAction(self):
         # restore GUI
-        self.builder.get_object("okButton").set_sensitive(True)
+        self.set_oks_sensitivies(True)
         self.builder.get_object("statusbar1").pop(self.context_id)
 
         # notify user how it finished
@@ -220,6 +223,10 @@ class GladeGTK:
     ###############
     # GUI signals
     ###############
+    def showDialog(self, name):
+        dialog = self.builder.get_object(name)
+        dialog.run()
+        dialog.hide()
 
     def on_backToDefaultQualityButton_clicked(self, widget):
         self.builder.get_object("hscale1").set_value(self.defaultQuality)
@@ -237,7 +244,37 @@ class GladeGTK:
         fileName = widget.get_filename()
         if fileName:
             self.setFileName(fileName)
-            self.builder.get_object("okButton").set_sensitive(True)
+            self.set_oks_sensitivies(True)
+
+    ###################
+    # Menu Actions
+    ###################
+    def on_openImagemenuitem_activate(self, widget):
+        print widget
+
+    def on_doImagemenuitem_activate(self, widget):
+        self.startAction()
+
+    def on_quitImagemenuitem_activate(self, widget):
+        self.quit()
+
+    def on_infoImagemenuitem_activate(self, widget):
+        print widget
+
+    def on_bugImagemenuitem_activate(self, widget):
+        webbrowser.open("mailto:haramaty.zvika@gmail.com?Subject=שיעור%20כזית:%20תקלה".encode(sys.getfilesystemencoding())
+                        , new=2)
+
+    def on_updateImagemenuitem_activate(self, widget):
+        print widget
+
+    def on_aboutImagemenuitem_activate(self, widget):
+        self.showDialog("aboutdialog1")
+
+
+    def set_oks_sensitivies(self, s):
+        self.builder.get_object("okButton").set_sensitive(s)
+        self.builder.get_object("doImagemenuitem").set_sensitive(s)
 
     def destroy(self, widget, data=None):
         self.quit()
@@ -276,7 +313,7 @@ class GladeGTK:
         path = self.get_file_path_from_dnd_dropped_uri(uri_splitted[0])
         if os.path.isfile(path.encode(sys.getfilesystemencoding())): # is it file?
             self.setFileName(path)
-            self.builder.get_object("okButton").set_sensitive(True)
+            self.set_oks_sensitivies(True)
             return path
 
     def get_file_path_from_dnd_dropped_uri(self, uri):
@@ -298,7 +335,8 @@ class GladeGTK:
     ###################
     # Init
     ###################
-
+    def uri_hook_func(self, ignore1, url, ignore2):
+        webbrowser.open(url, new=2)
 
     def __init__(self):
         self.defaultQuality = 3
@@ -317,6 +355,15 @@ class GladeGTK:
             gtk.DEST_DEFAULT_ALL,
             [ ( "text/uri-list", 0, 80 ) ],
             gtk.gdk.ACTION_DEFAULT)
+
+
+        #######################
+        ## About Dialog Init ##
+        #######################
+        gtk.about_dialog_set_url_hook(self.uri_hook_func, data=None)
+        aboutDialog = self.builder.get_object("aboutdialog1")
+        aboutDialog.set_comments(aboutDialog.get_comments()+version)
+
 
         #######################
         ## File Chooser Init ##
