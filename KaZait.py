@@ -15,6 +15,7 @@ from threading import Thread
 from Queue import Queue, Empty
 import webbrowser
 
+# move it to shared file to InnoSetup!
 version = "0.4"
 
 # TODO:
@@ -250,6 +251,7 @@ class GladeGTK:
     # Menu Actions
     ###################
     def on_openImagemenuitem_activate(self, widget):
+        print self.builder.get_object("filechooserbutton1").activate()
         print widget
 
     def on_doImagemenuitem_activate(self, widget):
@@ -259,7 +261,10 @@ class GladeGTK:
         self.quit()
 
     def on_infoImagemenuitem_activate(self, widget):
-        print widget
+        with open(resource_path("explainDialog.txt")) as file:
+            text = file.read()
+            self.builder.get_object("explainTextBuffer").set_text(text)
+            self.showDialog("infoDialog")
 
     def on_bugImagemenuitem_activate(self, widget):
         webbrowser.open("mailto:haramaty.zvika@gmail.com?Subject=שיעור%20כזית:%20תקלה".encode(sys.getfilesystemencoding())

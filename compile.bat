@@ -22,5 +22,6 @@ rem
 del /Q dist\*
 del /Q output\*
 pyinstaller KaZait.spec
-
 pause
+cd dist
+KaZait.exe
