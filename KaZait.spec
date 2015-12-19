@@ -15,10 +15,12 @@ a = Analysis(['kazait.py'],
              win_private_assemblies=None,
              cipher=block_cipher)
 	     
-a.datas += [('main.glade', r'main.glade', 'DATA')]
 a.datas += [('ffmpeg.exe', r'ffmpeg.exe', 'DATA')]
 a.datas += [('explainDialog.txt', r'explainDialog.txt', 'DATA')]
+
 a.datas += [('Icons-Land-3d-Food-Fruit-Olive-Green.ico', r'Icons-Land-3d-Food-Fruit-Olive-Green.ico', 'DATA')]
+a.datas += [('version.iss', r'version.iss', 'DATA')]
+a.datas += [('main.glade', r'main.glade', 'DATA')]
 a.datas += [('gtkrc', r'C:\Python27\Lib\site-packages\gtk-2.0\runtime\share\themes\MS-Windows\gtk-2.0\gtkrc', 'DATA')]
 a.binaries += [(r'lib\gtk-2.0\2.10.0\engines\libwimp.dll', r'C:\Python27\Lib\site-packages\gtk-2.0\runtime\lib\gtk-2.0\2.10.0\engines\libwimp.dll', 'BINARY') ]
 a.binaries += [(r'share\locale\he\LC_MESSAGES\gtk20.mo', r'C:\Python27\Lib\site-packages\gtk-2.0\runtime\share\locale\he\LC_MESSAGES\gtk20.mo', 'BINARY') ]

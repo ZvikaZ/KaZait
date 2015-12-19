@@ -1,6 +1,10 @@
 ﻿# -*- coding: utf-8 -*-
 
+import updater
+# external imports
+
 import gtk
+import gobject
 import os
 import sys
 import subprocess
@@ -15,10 +19,13 @@ from threading import Thread
 from Queue import Queue, Empty
 import webbrowser
 
-# move it to shared file to InnoSetup!
-version = "0.4"
 
 # TODO:
+# - proxy not working on compiled
+# - still delta between compiled icons
+# - check: no proxy on Intel - update causes delayes on startup
+# - return open file menu
+# - add previous releases link
 # - dNd:  highlight/change cursor when possible
 # - verify that temp file get erased
 # - ? add some waiting on progress bar, to save some cpu cycles...  (measure first!)
@@ -271,7 +278,11 @@ class GladeGTK:
                         , new=2)
 
     def on_updateImagemenuitem_activate(self, widget):
-        print widget
+        self.updater.check_for_updates()
+        finished = self.updater.finished.wait(10)
+        if finished:
+            self.updater_finished(auto_started=False)
+
 
     def on_aboutImagemenuitem_activate(self, widget):
         self.showDialog("aboutdialog1")
@@ -287,6 +298,41 @@ class GladeGTK:
     def quit(self):
         # self.saveConfig()
         gtk.main_quit()
+
+    def auto_updater_on_init(self):
+        while not self.updater.finished.is_set():
+            time.sleep(0.001)
+            # request GTK to come back for another round
+            yield True
+
+        # we're finished here
+        self.updater_finished(auto_started=True)
+        yield False
+
+    def updater_finished(self, auto_started):
+        md = None
+        if self.updater.ok:
+            if self.updater.need_update:
+                self.builder.get_object("update_version_label").set_text(str(self.updater.latest_version))
+                self.showDialog("update_dialog")
+            else:
+                if not auto_started:
+                    md = gtk.MessageDialog(self.builder.get_object("MainWindow"),
+                        gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO,
+                        gtk.BUTTONS_CLOSE, "הגרסה המותקנת עדכנית")
+        else:
+            if not auto_started:
+                md = gtk.MessageDialog(self.builder.get_object("MainWindow"),
+                    gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+                    gtk.BUTTONS_CLOSE, "לא הצלחנו לבדוק האם יש עדכון זמין"+"\n\n"+str(self.updater.error_message))
+
+        if md:
+            md.run()
+            md.destroy()
+
+    def on_update_dialog_response(self, dialog, response_id):
+        if response_id == gtk.RESPONSE_YES:
+            webbrowser.open(self.updater.download_url)
 
 
     ###################
@@ -344,8 +390,10 @@ class GladeGTK:
         webbrowser.open(url, new=2)
 
     def __init__(self):
+        gobject.threads_init()
         self.defaultQuality = 3
         self.proc = None
+        self.updater = updater.Updater("https://api.github.com/repos/ZvikaZ/KaZait")
         self.showWindow()
 
     def my_init(self):
@@ -367,7 +415,7 @@ class GladeGTK:
         #######################
         gtk.about_dialog_set_url_hook(self.uri_hook_func, data=None)
         aboutDialog = self.builder.get_object("aboutdialog1")
-        aboutDialog.set_comments(aboutDialog.get_comments()+version)
+        aboutDialog.set_comments(aboutDialog.get_comments()+self.updater.current_version)
 
 
         #######################
@@ -412,6 +460,11 @@ class GladeGTK:
         scale.set_range(1, 10)
         scale.set_value(self.defaultQuality)
 
+        #######################
+        ## Auto Updater      ##
+        #######################
+        updater_task = self.auto_updater_on_init()
+        gtk.idle_add(updater_task.next)
 
     def showWindow(self):
         # self.readConfig()
